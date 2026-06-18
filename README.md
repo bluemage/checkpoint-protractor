@@ -38,7 +38,9 @@ git clone https://github.com/checkpointmusic/checkpointprotractor.git
 cd checkpointprotractor
 
 make
+
 make install     ?
+
 make deb         ?
 
 to use
