@@ -1,0 +1,4 @@
+#!/bin/sh
+# Launcher for the on-screen protractor (installed by the Debian package).
+export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}"
+exec python3 /usr/share/checkpoint-protractor/protractor.py "$@"

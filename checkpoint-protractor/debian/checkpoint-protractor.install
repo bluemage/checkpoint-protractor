@@ -1,0 +1,4 @@
+checkpoint-protractor usr/bin/
+protractor.py usr/share/checkpoint-protractor/
+debian/checkpoint-protractor.desktop usr/share/applications/
+README.md usr/share/doc/checkpoint-protractor/

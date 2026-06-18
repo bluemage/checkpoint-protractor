@@ -1,0 +1,23 @@
+Source: checkpoint-protractor
+Section: utils
+Priority: optional
+Maintainer: Checkpoint Music <packages@checkpointmusic.local>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/checkpointmusic/checkpointprotractor
+Vcs-Browser: https://github.com/checkpointmusic/checkpointprotractor
+Vcs-Git: https://github.com/checkpointmusic/checkpointprotractor.git
+
+Package: checkpoint-protractor
+Architecture: all
+Depends:
+ ${misc:Depends},
+ python3:any,
+ python3-pyqt5,
+Description: on-screen protractor overlay for Linux
+ Transparent, always-on-top protractor for measuring angles anywhere on
+ your desktop. Drag the arms to measure, rotate the protractor along its
+ arc, and move it freely across multiple monitors.
+ .
+ Designed for Ubuntu and other Debian-based systems with PyQt5.

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=On-Screen Protractor
+GenericName=Screen Protractor
+Comment=Measure angles on your screen with a transparent overlay
+Exec=checkpoint-protractor
+Icon=applications-education
+Terminal=false
+Type=Application
+Categories=Utility;Education;Graphics;
+Keywords=protractor;angle;measure;overlay;screen;
+StartupNotify=true

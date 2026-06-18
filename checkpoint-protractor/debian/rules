@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE = 1
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	# Pure Python app — no compile step.
+
+override_dh_install:
+	dh_install
+	chmod 755 debian/checkpoint-protractor/usr/bin/checkpoint-protractor
+	chmod 644 debian/checkpoint-protractor/usr/share/checkpoint-protractor/protractor.py

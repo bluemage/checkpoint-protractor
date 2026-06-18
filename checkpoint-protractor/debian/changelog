@@ -1,0 +1,5 @@
+checkpoint-protractor (1.0.0-1) unstable; urgency=medium
+
+  * Initial Debian release.
+
+ -- Checkpoint Music <packages@checkpointmusic.local>  Thu, 18 Jun 2026 12:00:00 +0000
