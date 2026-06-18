@@ -32,20 +32,17 @@ Or via pip:
 pip install -r requirements.txt
 ```
 
-## Quick start
-
-```bash
+## Start 
 git clone https://github.com/checkpointmusic/checkpointprotractor.git
 cd checkpointprotractor
-python3 protractor.py
-```
 
-Recommended when launching from an IDE terminal (e.g. Cursor):
+make
+make install     ?
+make deb         ?
 
-```bash
-chmod +x run.sh
+to use
 ./run.sh
-```
+
 
 ## Controls
 
@@ -68,25 +65,6 @@ Build a `.deb` for Ubuntu / Debian:
 ```bash
 sudo apt install debhelper-compat devscripts build-essential
 make deb
-```
-
-The package is written to the parent directory:
-
-```text
-../checkpoint-protractor_1.0.0-1_all.deb
-```
-
-Install it:
-
-```bash
-sudo dpkg -i ../checkpoint-protractor_1.0.0-1_all.deb
-sudo apt install -f
-```
-
-Then launch from your application menu (**On-Screen Protractor**) or run:
-
-```bash
-checkpoint-protractor
 ```
 
 ## Project layout
