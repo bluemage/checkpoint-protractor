@@ -4,7 +4,7 @@
 import math
 import sys
 
-from PyQt5.QtCore import Qt, QPointF, QRect, QRectF
+from PyQt5.QtCore import Qt, QPointF, QRectF
 from PyQt5.QtGui import (
     QBrush,
     QColor,
@@ -17,56 +17,62 @@ from PyQt5.QtGui import (
 from PyQt5.QtWidgets import QApplication, QWidget
 
 
-def all_screens_geometry() -> QRect:
-    """Bounding rectangle covering every connected display."""
-    geometry = None
-    for screen in QApplication.screens():
-        geometry = screen.geometry() if geometry is None else geometry.united(screen.geometry())
-    return geometry or QApplication.primaryScreen().geometry()
-
-
-class ProtractorCanvas(QWidget):
-    """Interactive protractor widget (child of the screen overlay)."""
+class ProtractorWindow(QWidget):
+    """Always-on-top protractor."""
 
     RADIUS = 220
     ARM_LENGTH = 280
     HIT_RADIUS = 18
     MARGIN = 50
+    TOP_MARGIN = 0
 
-    def __init__(self, overlay: "ScreenOverlay"):
-        super().__init__(overlay)
-        self._overlay = overlay
+    def __init__(self):
+        super().__init__(None)
         self.setMouseTracking(True)
+        self.setWindowTitle("On-Screen Protractor")
+        self.setWindowFlags(
+            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Window
+        )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFocusPolicy(Qt.StrongFocus)
 
         size = (self.RADIUS + self.ARM_LENGTH + self.MARGIN) * 2
-        self.setFixedSize(size, size + 40)
+        top_extent = self.ARM_LENGTH
+        bottom_extent = max(self.RADIUS, self.ARM_LENGTH) + 24
+        height = int(self.TOP_MARGIN + top_extent + bottom_extent + self.MARGIN)
+        self.setFixedSize(size, height)
 
-        self.center = QPointF(size / 2, size / 2 + 10)
+        self.center = QPointF(size / 2, self.TOP_MARGIN + top_extent)
         self.base_angle = 0.0
         self.arm1_angle = 30.0
         self.arm2_angle = 150.0
 
         self._drag_mode = None
         self._last_mouse = QPointF()
-        self._last_global = QPointF()
         self._window_drag_offset = QPointF()
+
+        primary = QApplication.primaryScreen().availableGeometry()
+        self.move(
+            primary.x() + (primary.width() - size) // 2,
+            primary.y() + (primary.height() - height) // 2,
+        )
+
+    def _move_window_to(self, global_pos):
+        self.move((global_pos - self._window_drag_offset).toPoint())
+        self.raise_()
 
     def measured_angle(self) -> float:
         diff = abs(self.arm2_angle - self.arm1_angle) % 360
         return diff if diff <= 180 else 360 - diff
-
-    def _local_to_world(self, point: QPointF) -> QPointF:
-        return self.center + point
 
     def _world_to_local(self, point: QPointF) -> QPointF:
         return point - self.center
 
     def _arm_endpoint(self, relative_deg: float) -> QPointF:
         total = math.radians(self.base_angle + relative_deg)
-        return self._local_to_world(
-            QPointF(self.ARM_LENGTH * math.cos(total), -self.ARM_LENGTH * math.sin(total))
+        return self.center + QPointF(
+            self.ARM_LENGTH * math.cos(total),
+            -self.ARM_LENGTH * math.sin(total),
         )
 
     def _angle_from_point(self, point: QPointF) -> float:
@@ -83,9 +89,6 @@ class ProtractorCanvas(QWidget):
         return math.hypot(a.x() - b.x(), a.y() - b.y())
 
     def _hit_test(self, pos: QPointF):
-        if self._dist(pos, self.center) <= self.HIT_RADIUS:
-            return "move"
-
         for mode, angle in (("arm1", self.arm1_angle), ("arm2", self.arm2_angle)):
             if self._dist(pos, self._arm_endpoint(angle)) <= self.HIT_RADIUS:
                 return mode
@@ -95,41 +98,38 @@ class ProtractorCanvas(QWidget):
         if abs(dist - self.RADIUS) < 24:
             return "rotate"
 
-        return None
+        return "move"
 
-    def _move_on_screen(self, global_pos: QPointF):
-        """Reposition on screen without moving the overlay window itself."""
-        self._overlay.set_global_center(global_pos - self._window_drag_offset)
-        self._overlay.raise_()
+    def _try_system_move(self) -> bool:
+        if QApplication.platformName() != "wayland":
+            return False
+        handle = self.windowHandle()
+        if handle is not None and hasattr(handle, "startSystemMove"):
+            handle.startSystemMove()
+            return True
+        return False
 
     def mousePressEvent(self, event):
         pos = event.localPos()
         if event.button() == Qt.LeftButton:
             hit = self._hit_test(pos)
-            if hit:
-                self._drag_mode = hit
-                self._last_mouse = pos
-                self._last_global = QPointF(event.globalPos())
-            else:
-                self._drag_mode = "window"
-                self._window_drag_offset = QPointF(event.globalPos()) - self._overlay.global_center
-                self._last_global = QPointF(event.globalPos())
+            self._drag_mode = hit
+            self._last_mouse = pos
+            if hit == "move" and not self._try_system_move():
+                self._window_drag_offset = event.globalPos() - self.frameGeometry().topLeft()
+                self.grabMouse()
             self.setFocus()
             event.accept()
         elif event.button() == Qt.RightButton:
-            self.window().close()
+            self.close()
             event.accept()
 
     def mouseMoveEvent(self, event):
         pos = event.localPos()
 
-        if self._drag_mode == "window" and event.buttons() & Qt.LeftButton:
-            self._move_on_screen(QPointF(event.globalPos()))
-            self._last_global = QPointF(event.globalPos())
-        elif self._drag_mode == "move" and event.buttons() & Qt.LeftButton:
-            self.center += pos - self._last_mouse
-            self._last_mouse = pos
-            self.update()
+        if self._drag_mode == "move" and event.buttons() & Qt.LeftButton:
+            if self.mouseGrabber() is self:
+                self._move_window_to(event.globalPos())
         elif self._drag_mode in ("arm1", "arm2") and event.buttons() & Qt.LeftButton:
             angle = self._angle_from_point(pos)
             if self._drag_mode == "arm1":
@@ -154,14 +154,16 @@ class ProtractorCanvas(QWidget):
             mode = self._hit_test(pos)
             if mode in ("arm1", "arm2"):
                 self.setCursor(Qt.CrossCursor)
-            elif mode == "move":
-                self.setCursor(Qt.SizeAllCursor)
             elif mode == "rotate":
                 self.setCursor(Qt.OpenHandCursor)
-            else:
+            elif mode == "move":
                 self.setCursor(Qt.SizeAllCursor)
+            else:
+                self.unsetCursor()
 
     def mouseReleaseEvent(self, _event):
+        if self.mouseGrabber() is self:
+            self.releaseMouse()
         self._drag_mode = None
 
     def wheelEvent(self, event):
@@ -177,14 +179,22 @@ class ProtractorCanvas(QWidget):
 
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key_Escape, Qt.Key_Q):
-            self.window().close()
+            self.close()
         elif event.key() == Qt.Key_R:
             self.base_angle = 0.0
             self.arm1_angle = 30.0
             self.arm2_angle = 150.0
             self.update()
         elif event.key() == Qt.Key_H:
-            self.window().setVisible(not self.window().isVisible())
+            self.setVisible(not self.isVisible())
+        elif event.key() == Qt.Key_Left:
+            self.move(self.x() - 20, self.y())
+        elif event.key() == Qt.Key_Right:
+            self.move(self.x() + 20, self.y())
+        elif event.key() == Qt.Key_Up:
+            self.move(self.x(), self.y() - 20)
+        elif event.key() == Qt.Key_Down:
+            self.move(self.x(), self.y() + 20)
         else:
             super().keyPressEvent(event)
 
@@ -297,54 +307,10 @@ class ProtractorCanvas(QWidget):
         painter.drawText(rect, Qt.AlignCenter, f"{self.measured_angle():.1f}°")
 
     def _draw_help(self, painter: QPainter):
-        text = "Drag empty area: move  |  Tips: arms  |  Arc: rotate  |  Esc: quit"
+        text = "Drag to move  |  Tips: arms  |  Arc: rotate  |  Arrows: nudge  |  Esc: quit"
         painter.setFont(QFont("Sans Serif", 8))
         painter.setPen(QPen(QColor(60, 60, 60, 180)))
         painter.drawText(QRectF(8, self.height() - 24, self.width() - 16, 18), Qt.AlignCenter, text)
-
-
-class ScreenOverlay(QWidget):
-    """
-    Full-screen transparent overlay. The window itself never moves — only the
-    protractor child repositions — so it stays visible across the whole desktop.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("On-Screen Protractor")
-        self.setWindowFlags(
-            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Window
-        )
-        self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setAttribute(Qt.WA_TransparentForMouseEvents)
-        self.setFocusPolicy(Qt.StrongFocus)
-
-        self.setGeometry(all_screens_geometry())
-
-        primary = QApplication.primaryScreen().availableGeometry()
-        self.global_center = QPointF(
-            primary.x() + primary.width() / 2,
-            primary.y() + primary.height() / 2,
-        )
-
-        self.canvas = ProtractorCanvas(self)
-        self.canvas.show()
-        self._sync_canvas_position()
-
-    def set_global_center(self, center: QPointF):
-        self.global_center = center
-        self._sync_canvas_position()
-
-    def _sync_canvas_position(self):
-        top_left = self.global_center - QPointF(self.canvas.width() / 2, self.canvas.height() / 2)
-        local = top_left - QPointF(self.x(), self.y())
-        self.canvas.move(int(local.x()), int(local.y()))
-
-    def keyPressEvent(self, event):
-        if event.key() in (Qt.Key_Escape, Qt.Key_Q):
-            self.close()
-        else:
-            self.canvas.keyPressEvent(event)
 
 
 def main():
@@ -353,8 +319,8 @@ def main():
     app.setApplicationName("Checkpoint Protractor")
     app.setQuitOnLastWindowClosed(True)
 
-    overlay = ScreenOverlay()
-    overlay.show()
+    window = ProtractorWindow()
+    window.show()
     sys.exit(app.exec_())
 
 
