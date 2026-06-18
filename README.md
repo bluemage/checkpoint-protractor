@@ -1,6 +1,6 @@
 # Checkpoint Protractor
 
-A transparent, always-on-top protractor overlay for Linux. Measure angles anywhere on your screen.
+A transparent, protractor overlay for Linux. Measure angles anywhere on your screen.
 “Our opponent is an alien starship packed with atomic bombs," I said. "We have a protractor.”
 ― Neal Stephenson, Anathem 
 
