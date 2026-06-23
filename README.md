@@ -33,9 +33,9 @@ pip install -r requirements.txt
 ```
 
 ## Start 
-git clone https://github.com/checkpointmusic/checkpointprotractor.git
+git clone https://github.com/bluemage/checkpoint-protractor.git
 
-cd checkpointprotractor
+cd checkpoint-protractor
 
 make
 
